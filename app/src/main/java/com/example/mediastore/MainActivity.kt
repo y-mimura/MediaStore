@@ -7,7 +7,6 @@ import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
-import android.util.Log
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
@@ -32,9 +31,15 @@ class MainActivity : AppCompatActivity() {
 
         private const val MEDIA_IMAGE_PERMISSION_REQUEST_CODE = 123457
 
-        private val MEDIA_IMAGE_PERMISSION = android.Manifest.permission.READ_EXTERNAL_STORAGE
+        private const val MEDIA_IMAGE_PERMISSION = android.Manifest.permission.READ_EXTERNAL_STORAGE
         @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-        private val MEDIA_IMAGE_PERMISSION_TIRAMISU = android.Manifest.permission.READ_MEDIA_IMAGES
+        private const val MEDIA_IMAGE_PERMISSION_TIRAMISU = android.Manifest.permission.READ_MEDIA_IMAGES
+    }
+
+    private val mediaImagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        MEDIA_IMAGE_PERMISSION_TIRAMISU
+    } else {
+        MEDIA_IMAGE_PERMISSION
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,16 +56,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun isMediaImagePermissionGranted(): Boolean {
+        return checkSelfPermission(mediaImagePermission) == PackageManager.PERMISSION_GRANTED
+    }
+
     private fun checkMediaImagePermission() {
-        val mediaImagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            MEDIA_IMAGE_PERMISSION_TIRAMISU
-        } else {
-            MEDIA_IMAGE_PERMISSION
-        }
-        if (checkSelfPermission(mediaImagePermission) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(mediaImagePermission), MEDIA_IMAGE_PERMISSION_REQUEST_CODE)
-        } else {
+        if (isMediaImagePermissionGranted()) {
             listImages()
+        } else {
+            requestPermissions(arrayOf(mediaImagePermission), MEDIA_IMAGE_PERMISSION_REQUEST_CODE)
         }
     }
 
@@ -82,7 +86,11 @@ class MainActivity : AppCompatActivity() {
             capture()
         }
         binding.showImages.setOnClickListener {
-            confirmShowImages()
+            if (isMediaImagePermissionGranted()) {
+                listImages()
+            } else {
+                confirmShowImages()
+            }
         }
     }
 
@@ -109,6 +117,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onError(exception: ImageCaptureException) {
+                exception.printStackTrace()
                 Toast.makeText(this@MainActivity, "Error saving image", Toast.LENGTH_SHORT).show()
             }
         })
